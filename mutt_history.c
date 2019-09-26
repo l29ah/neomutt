@@ -34,6 +34,7 @@
 #include "mutt.h"
 #include "mutt_history.h"
 #include "curs_lib.h"
+#include "dialog.h"
 #include "format_flags.h"
 #include "keymap.h"
 #include "mutt_menu.h"
@@ -99,7 +100,28 @@ static void history_menu(char *buf, size_t buflen, char **matches, int match_cou
 
   snprintf(title, sizeof(title), _("History '%s'"), buf);
 
+  struct MuttWindow *root = mutt_window_new(MUTT_WIN_ORIENT_VERTICAL, MUTT_WIN_SIZE_MAXIMISE, MUTT_WIN_SIZE_UNLIMITED, MUTT_WIN_SIZE_UNLIMITED);
+  root->name = "addr-root";
+  struct MuttWindow *pager = mutt_window_new(MUTT_WIN_ORIENT_VERTICAL, MUTT_WIN_SIZE_MAXIMISE, MUTT_WIN_SIZE_UNLIMITED, MUTT_WIN_SIZE_UNLIMITED);
+  pager->name = "addr-pager";
+  struct MuttWindow *pbar = mutt_window_new(MUTT_WIN_ORIENT_VERTICAL, MUTT_WIN_SIZE_FIXED, 1, MUTT_WIN_SIZE_UNLIMITED);
+  pbar->name = "addr-bar";
+
+  struct Dialog *dialog = mutt_mem_calloc(1, sizeof (*dialog));
+  dialog->root = root;
+
+  mutt_window_add_child(root, pager);
+  mutt_window_add_child(root, pbar);
+
+  dialog_push(dialog);
+  win_dump();
+
   struct Menu *menu = mutt_menu_new(MENU_GENERIC);
+
+  menu->pagelen = pager->state.rows;
+  menu->indexwin = pager;
+  menu->statuswin = pbar;
+
   menu->menu_make_entry = history_make_entry;
   menu->title = title;
   menu->help = mutt_compile_help(helpstr, sizeof(helpstr), MENU_GENERIC, HistoryHelp);
@@ -124,6 +146,9 @@ static void history_menu(char *buf, size_t buflen, char **matches, int match_cou
 
   mutt_menu_pop_current(menu);
   mutt_menu_free(&menu);
+  dialog_pop();
+  mutt_window_free(&root);
+  FREE(&dialog);
 }
 
 /**
